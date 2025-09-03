@@ -1,75 +1,75 @@
 <template>
-  <div class="container py-4">
-    <h4 class="mb-4 text-success">Danh Sách Phiếu Nhập</h4>
+  <div class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5)">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <!-- Header -->
+        <div class="modal-header bg-success text-white">
+          <h5>📑 Chi Tiết Phiếu Nhập Hàng #{{ phieuNhap?.maPN }}</h5>
+          <button class="btn-close btn-close-white" @click="$emit('close')"></button>
+        </div>
 
-    <table class="table table-bordered align-middle">
-      <thead class="table-success text-center">
-        <tr>
-          <th>Mã PN</th>
-          <th>Ngày nhập</th>
-          <th>Nhân viên</th>
-          <th>Nhà cung cấp</th>
-          <th>Tổng tiền</th>
-          <th>Chi tiết</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="pn in phieuNhaps" :key="pn.maPN">
-          <td class="text-center">{{ pn.maPN }}</td>
-          <td>{{ formatDate(pn.ngayNhap) }}</td>
-          <td>{{ pn.tenNV }}</td>
-          <td>{{ pn.tenNCC }}</td>
-          <td class="text-end text-danger">{{ pn.tongTien.toLocaleString() }} đ</td>
-          <td class="text-center">
-            <button class="btn btn-sm btn-info" @click="xemChiTiet(pn.maPN)">
-              <i class="bi bi-eye"></i> Xem
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+        <!-- Body -->
+        <div class="modal-body" ref="printArea">
+          <p><strong>Ngày nhập:</strong> {{ formatDate(phieuNhap.ngayNhap) }}</p>
+          <p><strong>Nhân viên:</strong> {{ phieuNhap.nhanVien?.hoTen }}</p>
+          <p><strong>Nhà cung cấp:</strong> {{ phieuNhap.nhaCungCap?.tenNCC }}</p>
 
-    <!-- Modal chi tiết -->
-    <div
-      v-if="chiTietModalVisible"
-      class="modal fade show d-block"
-      style="background: rgba(0, 0, 0, 0.4)"
-    >
-      <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Chi Tiết Phiếu Nhập #{{ selectedPN?.maPN }}</h5>
-            <button type="button" class="btn-close" @click="chiTietModalVisible = false"></button>
-          </div>
-          <div class="modal-body">
-            <p><strong>Nhân viên:</strong> {{ selectedPN?.tenNV }}</p>
-            <p><strong>Nhà cung cấp:</strong> {{ selectedPN?.tenNCC }}</p>
-            <p><strong>Ngày nhập:</strong> {{ formatDate(selectedPN?.ngayNhap) }}</p>
+          <table class="table table-bordered table-striped align-middle">
+            <thead class="table-light text-center">
+              <tr>
+                <th>STT</th>
+                <th>Tên sản phẩm</th>
+                <th>ĐVT</th>
+                <th>SL</th>
+                <th>Đơn giá</th>
+                <th>Ngày SX</th>
+                <th>Hạn SD</th>
+                <th>Thành tiền</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(ct, i) in chiTietList" :key="i">
+                <td>{{ i + 1 }}</td>
+                <td class="text-start">
+                  <div>
+                    <strong>
+                      {{ ct.tenBienThe || ct.tenThuoc || 'Không rõ' }}
+                      <span v-if="ct.quyCachDongGoi"> - {{ ct.quyCachDongGoi }}</span>
+                    </strong>
+                  </div>
+                  <div class="text-muted small">
+                    {{ ct.maBienThe ? 'Mã biến thể: ' + ct.maBienThe : 'Mã thuốc: ' + ct.maThuoc }}
+                  </div>
+                </td>
+                <td class="text-center">{{ ct.tenDonViTinh || 'N/A' }}</td>
+                <td class="text-center">{{ ct.soLuong }}</td>
+                <td class="text-end">{{ formatPrice(ct.donGiaNhap) }}</td>
+                <td class="text-center">{{ formatDate(ct.ngaySanXuat) }}</td>
+                <td
+                  :class="['text-center', isSapHetHan(ct.hanSuDung) ? 'text-danger fw-bold' : '']"
+                >
+                  {{ formatDate(ct.hanSuDung) }}
+                </td>
+                <td class="text-end text-danger fw-bold">
+                  {{ formatPrice(ct.soLuong * ct.donGiaNhap) }}
+                </td>
+              </tr>
+              <tr>
+                <td colspan="7" class="text-end fw-bold">Tổng cộng</td>
+                <td class="text-end text-danger fw-bold">{{ formatPrice(tongTien) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-            <table class="table table-striped">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Tên thuốc</th>
-                  <th>Số lượng</th>
-                  <th>Đơn giá</th>
-                  <th>Thành tiền</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(ct, index) in selectedPN?.chiTiet || []" :key="index">
-                  <td>{{ index + 1 }}</td>
-                  <td>{{ ct.tenThuoc }}</td>
-                  <td class="text-center">{{ ct.soLuong }}</td>
-                  <td class="text-end">{{ ct.donGiaNhap.toLocaleString() }}</td>
-                  <td class="text-end">{{ (ct.soLuong * ct.donGiaNhap).toLocaleString() }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="modal-footer">
-            <button class="btn btn-secondary" @click="chiTietModalVisible = false">Đóng</button>
-          </div>
+        <!-- Footer -->
+        <div class="modal-footer">
+          <button class="btn btn-secondary" @click="$emit('close')">
+            <i class="bi bi-x-circle me-1"></i> Đóng
+          </button>
+          <button class="btn btn-success" @click="handlePrint">
+            <i class="bi bi-printer me-1"></i> In phiếu nhập
+          </button>
         </div>
       </div>
     </div>
@@ -77,41 +77,33 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
-// Demo: danh sách phiếu nhập (gọi API thực tế thay bằng fetch hoặc axios)
-const phieuNhaps = ref([
-  {
-    maPN: 1001,
-    ngayNhap: '2024-06-01',
-    tenNV: 'Nguyễn Văn A',
-    tenNCC: 'Công ty ABC',
-    tongTien: 500000,
-    chiTiet: [
-      { tenThuoc: 'Paracetamol', soLuong: 50, donGiaNhap: 5000 },
-      { tenThuoc: 'Vitamin C', soLuong: 30, donGiaNhap: 8000 },
-    ],
-  },
-  {
-    maPN: 1002,
-    ngayNhap: '2024-06-05',
-    tenNV: 'Trần Thị B',
-    tenNCC: 'Công ty XYZ',
-    tongTien: 240000,
-    chiTiet: [{ tenThuoc: 'Cảm cúm F', soLuong: 20, donGiaNhap: 12000 }],
-  },
-])
+const props = defineProps({
+  phieuNhap: { type: Object, required: true },
+  chiTietList: { type: Array, required: true },
+})
 
-const chiTietModalVisible = ref(false)
-const selectedPN = ref(null)
+const emit = defineEmits(['close', 'print'])
+const printArea = ref(null)
 
-const xemChiTiet = (maPN) => {
-  selectedPN.value = phieuNhaps.value.find((pn) => pn.maPN === maPN)
-  chiTietModalVisible.value = true
+const formatPrice = (n) => (n ?? 0).toLocaleString('vi-VN') + ' đ'
+const formatDate = (d) => (d ? new Date(d).toLocaleDateString('vi-VN') : '')
+
+const tongTien = computed(() =>
+  props.chiTietList.reduce((sum, ct) => sum + ct.soLuong * ct.donGiaNhap, 0),
+)
+
+// 🔴 Kiểm tra hạn sử dụng còn <= 90 ngày → cảnh báo đỏ
+const isSapHetHan = (han) => {
+  if (!han) return false
+  const hsd = new Date(han)
+  const now = new Date()
+  const diff = (hsd - now) / (1000 * 60 * 60 * 24) // ngày
+  return diff <= 90
 }
 
-const formatDate = (dateStr) => {
-  const d = new Date(dateStr)
-  return d.toLocaleDateString('vi-VN')
+const handlePrint = () => {
+  emit('print', printArea.value.innerHTML)
 }
 </script>

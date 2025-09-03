@@ -1,311 +1,498 @@
 <template>
-  <div class="container mt-4">
-    <h4 class="mb-4 text-success fw-bold">📥 Quản lý Phiếu Nhập</h4>
+  <div class="container py-4">
+    <h4 class="text-success mb-4 fw-bold">📥 Quản lý Phiếu Nhập Hàng</h4>
 
+    <!-- Bộ lọc -->
+    <div class="card shadow-sm mb-3 border-0">
+      <div class="card-body">
+        <div class="row g-2">
+          <div class="col-md-4">
+            <input
+              v-model="keyword"
+              class="form-control shadow-sm rounded-pill"
+              placeholder="🔍 Tìm mã PN, nhân viên, NCC"
+            />
+          </div>
+          <div class="col-md-3">
+            <input type="date" v-model="tuNgay" class="form-control shadow-sm rounded-pill" />
+          </div>
+          <div class="col-md-3">
+            <input type="date" v-model="denNgay" class="form-control shadow-sm rounded-pill" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Nút tạo mới -->
     <div class="text-end mb-3">
-      <button class="btn btn-success" @click="moFormNhap = true">➕ Tạo Phiếu Nhập</button>
+      <button class="btn btn-success shadow-sm rounded-pill px-4" @click="moTao = true">
+        ➕ Tạo phiếu nhập hàng
+      </button>
     </div>
 
-    <!-- Bảng danh sách -->
-    <div class="table-responsive shadow-sm border">
-      <table class="table table-bordered table-hover text-center align-middle">
-        <thead class="table-success">
-          <tr>
-            <th>Mã PN</th>
-            <th>Ngày nhập</th>
-            <th>Nhân viên</th>
-            <th>Nhà cung cấp</th>
-            <th>Tổng tiền</th>
-            <th>Chi tiết</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="pn in phieuNhaps" :key="pn.maPN">
-            <td>{{ pn.maPN }}</td>
-            <td>{{ formatDate(pn.ngayNhap) }}</td>
-            <td>{{ pn.tenNV }}</td>
-            <td>{{ pn.tenNCC }}</td>
-            <td class="text-end text-danger">{{ formatCurrency(pn.tongTien) }}</td>
-            <td><button class="btn btn-sm btn-info" @click="xemChiTiet(pn)">Xem</button></td>
-          </tr>
-        </tbody>
-      </table>
+    <!-- Danh sách phiếu nhập -->
+    <div class="card shadow-sm border-0">
+      <div class="card-body p-0">
+        <table class="table table-hover align-middle text-center mb-0">
+          <thead class="table-success">
+            <tr>
+              <th>Mã PN</th>
+              <th>Ngày nhập</th>
+              <th>Nhân viên</th>
+              <th>Nhà cung cấp</th>
+              <th>Tổng tiền</th>
+              <th>Chi tiết</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="pn in paginatedPhieuNhaps" :key="pn.maPN">
+              <td class="fw-bold text-success">#{{ pn.maPN }}</td>
+              <td>{{ formatDate(pn.ngayNhap) }}</td>
+              <td>{{ pn.nhanVien?.hoTen }}</td>
+              <td>{{ pn.nhaCungCap?.tenNCC }}</td>
+              <td class="text-end text-danger fw-bold">{{ formatPrice(pn.tongTien) }}</td>
+              <td>
+                <button class="btn btn-info btn-sm action-square" @click="xemChiTiet(pn)">
+                  <i class="bi bi-search"></i>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
+
+    <!-- Phân trang -->
+    <nav v-if="totalPages > 1" class="mt-3">
+      <ul class="pagination justify-content-center">
+        <li class="page-item" :class="{ disabled: currentPage === 0 }">
+          <button class="page-link" @click="changePage(currentPage - 1)">Trước</button>
+        </li>
+        <li
+          v-for="page in totalPages"
+          :key="page"
+          class="page-item"
+          :class="{ active: currentPage === page - 1 }"
+        >
+          <button class="page-link" @click="changePage(page - 1)">{{ page }}</button>
+        </li>
+        <li class="page-item" :class="{ disabled: currentPage === totalPages - 1 }">
+          <button class="page-link" @click="changePage(currentPage + 1)">Sau</button>
+        </li>
+      </ul>
+    </nav>
 
     <!-- Modal tạo phiếu nhập -->
-    <template v-if="moFormNhap">
-      <div class="modal-backdrop fade show"></div>
-      <div class="modal fade show d-block" @click.self="moFormNhap = false">
-        <div class="modal-dialog modal-lg">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title">📝 Tạo Phiếu Nhập</h5>
-              <button class="btn-close" @click="moFormNhap = false"></button>
-            </div>
+    <div v-if="moTao" class="modal fade show d-block" style="background: rgba(0, 0, 0, 0.5)">
+      <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0">
+          <div class="modal-header bg-success text-white">
+            <h5 class="modal-title">📝 Tạo Phiếu Nhập Hàng</h5>
+            <button class="btn-close btn-close-white" @click="moTao = false"></button>
+          </div>
 
-            <div class="modal-body">
-              <!-- Thông tin chung -->
-              <div class="row g-3 mb-3">
-                <div class="col-md-6">
-                  <label>Nhân viên:</label>
-                  <input class="form-control" :value="currentUser.hoTen" disabled />
-                </div>
-                <div class="col-md-6">
-                  <label>Nhà cung cấp:</label>
-                  <select v-model="form.tenNCC" class="form-select">
-                    <option disabled value="">-- Chọn nhà cung cấp --</option>
-                    <option v-for="ncc in nhaCungCaps" :key="ncc.maNCC" :value="ncc.tenNCC">
-                      {{ ncc.tenNCC }}
-                    </option>
-                  </select>
-                </div>
-              </div>
-
-              <!-- Thêm chi tiết -->
-              <div class="row g-2 mb-3">
-                <div class="col-md-4 position-relative">
-                  <input
-                    v-model="searchThuoc"
-                    class="form-control"
-                    placeholder="Tìm tên thuốc..."
-                    @input="filterThuoc"
-                  />
-                  <ul
-                    class="list-group position-absolute"
-                    v-if="suggestions.length"
-                    style="z-index: 999; max-height: 200px; overflow-y: auto"
+          <div class="modal-body">
+            <!-- Hàng: Tìm thuốc (trái) + NCC (phải) -->
+            <div class="row g-3 mb-3">
+              <!-- Tìm thuốc -->
+              <div class="col-md-6 position-relative" ref="searchWrapper">
+                <label class="form-label fw-bold">Thuốc / Biến thể</label>
+                <input
+                  v-model="search"
+                  class="form-control shadow-sm"
+                  placeholder="🔍 Tìm thuốc hoặc biến thể"
+                  @input="filterSuggestions"
+                />
+                <ul
+                  v-if="suggestions.length"
+                  class="list-group position-absolute w-100 shadow border"
+                  style="max-height: 300px; overflow-y: auto; z-index: 1056"
+                >
+                  <li
+                    v-for="s in suggestions"
+                    :key="s.ma"
+                    class="list-group-item d-flex justify-content-between align-items-center suggestion-item"
                   >
-                    <li
-                      v-for="s in suggestions"
-                      :key="s.maBienThe"
-                      class="list-group-item list-group-item-action"
-                      @click="chonThuoc(s)"
-                    >
-                      {{ s.tenBienThe }}
-                    </li>
-                  </ul>
-                </div>
-                <div class="col-md-3">
-                  <input
-                    v-model.number="thuocNhap.soLuong"
-                    type="number"
-                    class="form-control"
-                    placeholder="Số lượng"
-                  />
-                </div>
-                <div class="col-md-3">
-                  <input
-                    v-model.number="thuocNhap.donGiaNhap"
-                    type="number"
-                    class="form-control"
-                    placeholder="Đơn giá"
-                  />
-                </div>
-                <div class="col-md-2">
-                  <button class="btn btn-primary w-100" @click="themThuoc">Thêm</button>
-                </div>
+                    <div class="d-flex align-items-center flex-grow-1">
+                      <img
+                        :src="getImageUrl(s.hinhAnh)"
+                        class="me-3"
+                        style="width: 60px; height: 60px; object-fit: cover; border-radius: 6px"
+                      />
+                      <div>
+                        <div class="fw-semibold text-truncate" style="max-width: 300px">
+                          {{ s.ten }}
+                        </div>
+                        <small class="text-muted">Mã: {{ s.ma }}</small>
+                        <div>
+                          <span
+                            class="badge"
+                            :class="s.type === 'thuoc' ? 'bg-primary' : 'bg-secondary'"
+                          >
+                            {{ s.type === 'thuoc' ? 'Thuốc' : 'Biến thể' }}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <button class="btn btn-outline-success btn-sm ms-3" @click="chonThuoc(s)">
+                      ✔
+                    </button>
+                  </li>
+                </ul>
               </div>
 
-              <!-- Danh sách -->
-              <table class="table table-bordered">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Mã Biến Thể</th>
-                    <th>Tên Biến Thể</th>
-                    <th>SL</th>
-                    <th>Đơn giá</th>
-                    <th>Thành tiền</th>
-                    <th>Xoá</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="(t, i) in form.chiTiet" :key="i">
-                    <td>{{ i + 1 }}</td>
-                    <td>{{ t.maBienThe }}</td>
-                    <td>{{ t.tenBienThe }}</td>
-                    <td>{{ t.soLuong }}</td>
-                    <td class="text-end">{{ formatCurrency(t.donGiaNhap) }}</td>
-                    <td class="text-end">{{ formatCurrency(t.soLuong * t.donGiaNhap) }}</td>
-                    <td>
-                      <button class="btn btn-sm btn-danger" @click="form.chiTiet.splice(i, 1)">
-                        Xoá
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              <!-- Nhà cung cấp -->
+              <div class="col-md-6">
+                <label class="form-label fw-bold">Nhà cung cấp</label>
+                <select v-model="form.maNCC" class="form-select shadow-sm rounded-pill">
+                  <option disabled value="">-- Chọn --</option>
+                  <option v-for="ncc in nhaCungCaps" :key="ncc.maNCC" :value="ncc.maNCC">
+                    {{ ncc.tenNCC }}
+                  </option>
+                </select>
+              </div>
             </div>
 
-            <div class="modal-footer">
-              <button class="btn btn-secondary" @click="moFormNhap = false">Hủy</button>
-              <button class="btn btn-success" :disabled="!coTheLuu" @click="luuPhieuNhap">
-                Lưu Phiếu Nhập
-              </button>
+            <!-- Hàng nhập thông tin chi tiết -->
+            <!-- Hàng nhập thông tin chi tiết -->
+            <div class="row g-3 mb-3 align-items-end">
+              <div class="col-md-2">
+                <label class="form-label fw-bold">Số lượng</label>
+                <input
+                  type="number"
+                  class="form-control shadow-sm"
+                  v-model.number="thuoc.soLuong"
+                />
+              </div>
+
+              <div class="col-md-2">
+                <label class="form-label fw-bold">Đơn giá</label>
+                <input
+                  type="number"
+                  class="form-control shadow-sm"
+                  v-model.number="thuoc.donGiaNhap"
+                />
+              </div>
+
+              <div class="col-md-3">
+                <label class="form-label fw-bold">Ngày sản xuất</label>
+                <input type="date" class="form-control shadow-sm" v-model="thuoc.ngaySanXuat" />
+              </div>
+
+              <div class="col-md-3">
+                <label class="form-label fw-bold">Hạn sử dụng</label>
+                <input type="date" class="form-control shadow-sm" v-model="thuoc.hanSuDung" />
+              </div>
+
+              <div class="col-md-2 d-flex">
+                <button class="btn btn-primary flex-fill mt-2" @click="themThuoc">Thêm</button>
+              </div>
             </div>
+
+            <!-- Bảng chi tiết nhập -->
+            <table class="table table-bordered">
+              <thead class="table-light">
+                <tr>
+                  <th>STT</th>
+                  <th>Tên</th>
+                  <th>SL</th>
+                  <th>Giá</th>
+                  <th>Ngày SX</th>
+                  <th>Hạn SD</th>
+                  <th>Tổng</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(t, i) in form.chiTiet" :key="i">
+                  <td>{{ i + 1 }}</td>
+                  <td>{{ t.ten }}</td>
+                  <td>{{ t.soLuong }}</td>
+                  <td class="text-end">{{ formatPrice(t.donGiaNhap) }}</td>
+                  <td>{{ formatDate(t.ngaySanXuat) }}</td>
+                  <td>{{ formatDate(t.hanSuDung) }}</td>
+                  <td class="text-end text-danger fw-bold">
+                    {{ formatPrice(t.soLuong * t.donGiaNhap) }}
+                  </td>
+                  <td>
+                    <button class="btn btn-sm btn-danger" @click="form.chiTiet.splice(i, 1)">
+                      Xoá
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="6" class="text-end fw-bold">Tổng cộng</td>
+                  <td class="text-end text-danger fw-bold">{{ formatPrice(tinhTongTien()) }}</td>
+                  <td></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-secondary" @click="moTao = false">Hủy</button>
+            <button
+              class="btn btn-success px-4"
+              @click="luuPhieuNhap"
+              :disabled="!form.maNCC || form.chiTiet.length === 0"
+            >
+              💾 Lưu
+            </button>
           </div>
         </div>
       </div>
-    </template>
+    </div>
 
     <!-- Modal chi tiết -->
-    <template v-if="chiTietModalVisible">
-      <div class="modal-backdrop fade show"></div>
-      <div class="modal fade show d-block" @click.self="closeModal">
-        <div class="modal-dialog modal-lg">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title">Chi Tiết Phiếu Nhập #{{ selectedPN.maPN }}</h5>
-              <button class="btn-close" @click="closeModal"></button>
-            </div>
-            <div class="modal-body">
-              <p><b>Nhân viên:</b> {{ selectedPN.tenNV }}</p>
-              <p><b>Nhà cung cấp:</b> {{ selectedPN.tenNCC }}</p>
-              <p><b>Ngày nhập:</b> {{ formatDate(selectedPN.ngayNhap) }}</p>
+    <ChiTietPhieuNhap
+      v-if="modalChiTiet"
+      :phieuNhap="selected"
+      :chiTietList="chiTietList"
+      @close="modalChiTiet = false"
+      @print="printPhieuNhap"
+    />
 
-              <table class="table table-striped">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Mã Biến Thể</th>
-                    <th>Tên Biến Thể</th>
-                    <th>SL</th>
-                    <th>Đơn giá</th>
-                    <th>Thành tiền</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="(ct, idx) in selectedPN.chiTiet" :key="idx">
-                    <td>{{ idx + 1 }}</td>
-                    <td>{{ ct.maBienThe }}</td>
-                    <td>{{ ct.tenBienThe }}</td>
-                    <td>{{ ct.soLuong }}</td>
-                    <td class="text-end">{{ formatCurrency(ct.donGiaNhap) }}</td>
-                    <td class="text-end">{{ formatCurrency(ct.soLuong * ct.donGiaNhap) }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="modal-footer">
-              <button class="btn btn-secondary" @click="closeModal">Đóng</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </template>
+    <ToastMessage ref="toast" />
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, onMounted, computed, onBeforeUnmount } from 'vue'
+import axios from 'axios'
+import ToastMessage from '../ToastMessage.vue'
+import ChiTietPhieuNhap from './ChiTietPhieuNhap.vue'
 
-const currentUser = ref({ maNV: 1, hoTen: 'Nguyễn Văn A' })
-const nhaCungCaps = ref([{ maNCC: 1, tenNCC: 'Dược ABC' }])
+const toast = ref(null)
+const keyword = ref('')
+const tuNgay = ref('')
+const denNgay = ref('')
+const currentPage = ref(0)
+const pageSize = 10
+
 const phieuNhaps = ref([])
+const chiTietList = ref([])
+const selected = ref(null)
+const moTao = ref(false)
+const modalChiTiet = ref(false)
+const currentUser = ref({ maNV: 1, hoTen: 'Nguyễn Văn A' })
+const form = ref({ maNCC: '', chiTiet: [] })
 
-// Mock dữ liệu kho tồn kho hàng
-const khoHang = ref([
-  {
-    maBienThe: 101,
-    tenBienThe: 'Paracetamol 500mg',
-    soLuongTon: 100,
-    ngayCapNhat: new Date().toISOString(),
-  },
-  {
-    maBienThe: 102,
-    tenBienThe: 'Vitamin C 1000mg',
-    soLuongTon: 50,
-    ngayCapNhat: new Date().toISOString(),
-  },
-  {
-    maBienThe: 103,
-    tenBienThe: 'Amoxicillin 250mg',
-    soLuongTon: 10,
-    ngayCapNhat: new Date().toISOString(),
-  },
-])
-
-const dsBienTheThuoc = ref([
-  { maBienThe: 101, tenBienThe: 'Paracetamol 500mg' },
-  { maBienThe: 102, tenBienThe: 'Vitamin C 1000mg' },
-  { maBienThe: 103, tenBienThe: 'Amoxicillin 250mg' },
-])
-
-const moFormNhap = ref(false)
-const chiTietModalVisible = ref(false)
-const selectedPN = ref(null)
-const form = ref({ tenNCC: '', chiTiet: [] })
-
-const searchThuoc = ref('')
+const nhaCungCaps = ref([])
+const dsThuoc = ref([])
+const dsBienThe = ref([])
 const suggestions = ref([])
+const search = ref('')
+const thuoc = ref({
+  ma: null,
+  ten: '',
+  type: '',
+  soLuong: 1,
+  donGiaNhap: 0,
+  ngaySanXuat: '',
+  hanSuDung: '',
+})
 
-const thuocNhap = ref({ maBienThe: '', tenBienThe: '', soLuong: 1, donGiaNhap: 0 })
+const formatPrice = (n) => (n ?? 0).toLocaleString('vi-VN') + ' đ'
+const formatDate = (d) => (d ? new Date(d).toLocaleDateString('vi-VN') : '')
+const tinhTongTien = () => form.value.chiTiet.reduce((sum, t) => sum + t.soLuong * t.donGiaNhap, 0)
 
-function filterThuoc() {
-  suggestions.value = dsBienTheThuoc.value.filter((bt) =>
-    bt.tenBienThe.toLowerCase().includes(searchThuoc.value.toLowerCase()),
-  )
+const searchWrapper = ref(null)
+const handleClickOutside = (event) => {
+  if (searchWrapper.value && !searchWrapper.value.contains(event.target)) {
+    suggestions.value = []
+  }
 }
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
 
-function chonThuoc(bt) {
-  thuocNhap.value.maBienThe = bt.maBienThe
-  thuocNhap.value.tenBienThe = bt.tenBienThe
+const filterSuggestions = () => {
+  const kw = search.value.toLowerCase()
   suggestions.value = []
-  searchThuoc.value = bt.tenBienThe
-}
 
-function themThuoc() {
-  if (thuocNhap.value.maBienThe && thuocNhap.value.soLuong > 0) {
-    form.value.chiTiet.push({ ...thuocNhap.value })
-    thuocNhap.value = { maBienThe: '', tenBienThe: '', soLuong: 1, donGiaNhap: 0 }
-    searchThuoc.value = ''
-  }
-}
+  dsThuoc.value.forEach((thuoc) => {
+    const isMatch = thuoc.tenThuoc.toLowerCase().includes(kw)
+    const matchedBienThes = thuoc.bienThes?.filter((bt) =>
+      (thuoc.tenThuoc + ' - ' + bt.tenBienThe).toLowerCase().includes(kw),
+    )
 
-const coTheLuu = computed(() => form.value.tenNCC && form.value.chiTiet.length)
-
-function luuPhieuNhap() {
-  const tongTien = form.value.chiTiet.reduce((sum, t) => sum + t.soLuong * t.donGiaNhap, 0)
-  const newPN = {
-    maPN: Date.now(),
-    ngayNhap: new Date().toISOString(),
-    tenNV: currentUser.value.hoTen,
-    tenNCC: form.value.tenNCC,
-    tongTien,
-    chiTiet: [...form.value.chiTiet],
-  }
-  phieuNhaps.value.unshift(newPN)
-
-  // ✅ Cập nhật tồn kho
-  form.value.chiTiet.forEach((ct) => {
-    const kho = khoHang.value.find((k) => k.maBienThe === ct.maBienThe)
-    if (kho) {
-      kho.soLuongTon += ct.soLuong
-      kho.ngayCapNhat = new Date().toISOString()
-    } else {
-      khoHang.value.push({
-        maBienThe: ct.maBienThe,
-        tenBienThe: ct.tenBienThe,
-        soLuongTon: ct.soLuong,
-        ngayCapNhat: new Date().toISOString(),
+    if (isMatch) {
+      suggestions.value.push({
+        ma: thuoc.maThuoc,
+        ten: thuoc.tenThuoc,
+        type: 'thuoc',
+        hinhAnh: thuoc.hinhAnhChinh,
       })
     }
+
+    matchedBienThes?.forEach((bt) => {
+      suggestions.value.push({
+        ma: bt.maBienThe,
+        ten: bt.tenBienThe,
+        type: 'bienthe',
+        hinhAnh: bt.hinhAnh,
+      })
+    })
   })
-
-  alert('✅ Đã lưu phiếu nhập & cập nhật kho hàng!')
-  form.value = { tenNCC: '', chiTiet: [] }
-  moFormNhap.value = false
 }
 
-function xemChiTiet(pn) {
-  selectedPN.value = pn
-  chiTietModalVisible.value = true
+const chonThuoc = (item) => {
+  thuoc.value = { ...item, soLuong: 1, donGiaNhap: 0, ngaySanXuat: '', hanSuDung: '' }
+  search.value = item.ten
+  suggestions.value = []
 }
 
-function closeModal() {
-  chiTietModalVisible.value = false
+const getImageUrl = (path) =>
+  path ? `http://localhost:8080/${path.startsWith('/') ? path.slice(1) : path}` : ''
+
+const themThuoc = () => {
+  if (
+    thuoc.value.ma &&
+    thuoc.value.soLuong > 0 &&
+    thuoc.value.donGiaNhap > 0 &&
+    thuoc.value.ngaySanXuat &&
+    thuoc.value.hanSuDung
+  ) {
+    const exists = form.value.chiTiet.some(
+      (t) => t.ma === thuoc.value.ma && t.type === thuoc.value.type,
+    )
+    if (exists) {
+      toast.value.show('⚠️ Sản phẩm đã tồn tại trong danh sách', 'warning')
+      return
+    }
+    form.value.chiTiet.push({ ...thuoc.value })
+    thuoc.value = {
+      ma: null,
+      ten: '',
+      type: '',
+      soLuong: 1,
+      donGiaNhap: 0,
+      ngaySanXuat: '',
+      hanSuDung: '',
+    }
+    search.value = ''
+  } else {
+    toast.value.show('❌ Vui lòng nhập đủ thông tin (SL, giá, ngày SX, HSD)', 'error')
+  }
 }
 
-const formatCurrency = (val) => (val ?? 0).toLocaleString('vi-VN') + ' ₫'
-const formatDate = (str) => new Date(str).toLocaleDateString('vi-VN')
+const luuPhieuNhap = async () => {
+  const chiTiet = form.value.chiTiet.map((t) => ({
+    maThuoc: t.type === 'thuoc' ? t.ma : null,
+    maBienThe: t.type === 'bienthe' ? t.ma : null,
+    soLuong: t.soLuong,
+    donGiaNhap: t.donGiaNhap,
+    ngaySanXuat: t.ngaySanXuat,
+    hanSuDung: t.hanSuDung,
+  }))
+  await axios.post('http://localhost:8080/api/phieu-nhap', {
+    maNV: currentUser.value.maNV,
+    maNCC: form.value.maNCC,
+    chiTiet,
+  })
+  moTao.value = false
+  form.value = { maNCC: '', chiTiet: [] }
+  await loadPhieuNhaps()
+  toast.value.show('✅ Tạo phiếu nhập thành công!', 'success')
+}
+
+const xemChiTiet = async (pn) => {
+  selected.value = pn
+  const res = await axios.get(`http://localhost:8080/api/phieu-nhap/${pn.maPN}/chi-tiet`)
+  chiTietList.value = res.data
+  modalChiTiet.value = true
+}
+
+const filteredPhieuNhaps = computed(() => {
+  let list = [...phieuNhaps.value]
+  list.sort((a, b) => new Date(b.ngayNhap) - new Date(a.ngayNhap))
+  if (keyword.value) {
+    const kw = keyword.value.toLowerCase()
+    list = list.filter(
+      (pn) =>
+        pn.maPN.toString().includes(kw) ||
+        pn.nhanVien?.hoTen?.toLowerCase().includes(kw) ||
+        pn.nhaCungCap?.tenNCC?.toLowerCase().includes(kw),
+    )
+  }
+  if (tuNgay.value) {
+    list = list.filter((pn) => new Date(pn.ngayNhap) >= new Date(tuNgay.value))
+  }
+  if (denNgay.value) {
+    list = list.filter((pn) => new Date(pn.ngayNhap) <= new Date(denNgay.value))
+  }
+  return list
+})
+
+const totalPages = computed(() => Math.ceil(filteredPhieuNhaps.value.length / pageSize))
+const paginatedPhieuNhaps = computed(() => {
+  const start = currentPage.value * pageSize
+  return filteredPhieuNhaps.value.slice(start, start + pageSize)
+})
+const changePage = (page) => {
+  if (page >= 0 && page < totalPages.value) currentPage.value = page
+}
+
+const loadPhieuNhaps = async () => {
+  const res = await axios.get('http://localhost:8080/api/phieu-nhap')
+  phieuNhaps.value = res.data
+}
+const loadData = async () => {
+  const [ncc, thuocRes, bienTheRes] = await Promise.all([
+    axios.get('http://localhost:8080/api/nhacungcap'),
+    axios.get('http://localhost:8080/api/thuoc'),
+    axios.get('http://localhost:8080/api/bienthe'),
+  ])
+
+  nhaCungCaps.value = ncc.data
+  dsThuoc.value = thuocRes.data
+  dsBienThe.value = bienTheRes.data
+
+  dsThuoc.value.forEach((t) => {
+    t.bienThes = dsBienThe.value.filter((bt) => bt.maThuoc === t.maThuoc)
+  })
+}
+
+const printPhieuNhap = (htmlContent) => {
+  const printWindow = window.open('', '_blank', 'width=900,height=650')
+  printWindow.document.write(`
+    <html>
+      <head>
+        <title>In phiếu nhập</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; }
+          table { width: 100%; border-collapse: collapse; }
+          th, td { border: 1px solid #ccc; padding: 8px; }
+          th { background: #f8f8f8; }
+          .text-end { text-align: right; }
+          .fw-bold { font-weight: bold; }
+          .text-danger { color: red; }
+        </style>
+      </head>
+      <body>
+        <h2 style="text-align:center">PHIẾU NHẬP HÀNG</h2>
+        ${htmlContent}
+      </body>
+    </html>
+  `)
+  printWindow.document.close()
+  printWindow.print()
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+  loadPhieuNhaps()
+  loadData()
+})
 </script>
+
+<style scoped>
+.list-group-item {
+  padding: 10px 12px;
+  white-space: nowrap;
+}
+.list-group {
+  min-width: 600px;
+  max-width: 800px;
+}
+</style>

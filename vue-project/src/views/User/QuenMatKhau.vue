@@ -1,222 +1,325 @@
 <template>
-  <div
-    class="forgot-password-container d-flex justify-content-center align-items-center min-vh-100"
-  >
-    <div class="card shadow-lg p-4 rounded" style="max-width: 420px; width: 100%">
-      <div class="text-center mb-3">
-        <i class="bi bi-lock-fill text-success" style="font-size: 2.5rem"></i>
-        <h4 class="mt-2 text-success">Quên mật khẩu</h4>
-        <p class="text-muted mb-0" style="font-size: 0.9rem">
-          Vui lòng điền thông tin để đặt lại mật khẩu
+  <div class="forgot-container d-flex justify-content-center align-items-center min-vh-100">
+    <!-- Loader toàn trang -->
+    <div v-if="isLoading" class="loading-overlay">
+      <div class="spinner-border text-success" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+    </div>
+
+    <div
+      class="card shadow p-4 text-center"
+      style="max-width: 420px; width: 100%; border-radius: 16px"
+    >
+      <div class="mb-4">
+        <img
+          src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRiqUlj1LB8gUERYiFqhQZfT6YFZa2VRvqfwA&s"
+          alt="icon"
+          width="64"
+          class="mb-3"
+        />
+        <h4 class="fw-bold">Quên Mật Khẩu</h4>
+        <p class="text-muted small">
+          Nhập địa chỉ email đã đăng ký để nhận<br />mã khôi phục mật khẩu
         </p>
       </div>
 
-      <form @submit.prevent="handleResetPassword">
+      <form @submit.prevent="xuLyDatLaiMatKhau" class="text-start">
         <!-- Email -->
-        <div class="form-group mb-3">
-          <label for="email">📧 Email</label>
-          <input
-            type="email"
-            class="form-control"
-            id="email"
-            v-model="email"
-            placeholder="Nhập email"
-            required
-          />
-        </div>
-
-        <!-- Mã xác thực -->
-        <div class="form-group mb-3">
-          <label for="verificationCode">🔐 Mã xác thực</label>
+        <div class="mb-3">
+          <label class="form-label">Email</label>
           <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-envelope-fill"></i></span>
             <input
-              type="text"
+              v-model="email"
+              type="email"
               class="form-control"
-              id="verificationCode"
-              v-model="verificationCode"
-              placeholder="Nhập mã xác thực"
+              placeholder="Nhập email của bạn"
               required
             />
-            <button
-              class="btn btn-outline-primary"
-              type="button"
-              :disabled="countdown > 0"
-              @click="sendCode"
-            >
-              {{ countdown > 0 ? `Gửi lại (${countdown}s)` : 'Gửi mã' }}
-            </button>
           </div>
         </div>
 
         <!-- Mật khẩu mới -->
-        <div class="form-group mb-3">
-          <label for="newPassword">🔑 Mật khẩu mới</label>
+        <div class="mb-3">
+          <label class="form-label">Mật khẩu mới</label>
           <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
             <input
-              :type="showNewPassword ? 'text' : 'password'"
+              :type="hienMatKhauMoi ? 'text' : 'password'"
+              v-model="matKhauMoi"
               class="form-control"
-              id="newPassword"
-              v-model="newPassword"
-              placeholder="Nhập mật khẩu mới"
-              required
+              placeholder="Tối thiểu 6 ký tự"
             />
-            <button class="btn btn-outline-secondary" type="button" @click="toggleNewPassword">
-              <i :class="showNewPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
+            <button
+              type="button"
+              class="btn btn-outline-secondary"
+              @click="chuyenTrangThaiMatKhauMoi"
+            >
+              <i :class="hienMatKhauMoi ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
             </button>
           </div>
         </div>
 
         <!-- Xác nhận mật khẩu -->
-        <div class="form-group mb-3">
-          <label for="confirmPassword">✅ Xác nhận mật khẩu</label>
+        <div class="mb-3">
+          <label class="form-label">Xác nhận mật khẩu</label>
           <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
             <input
-              :type="showConfirmPassword ? 'text' : 'password'"
+              :type="hienXacNhanMatKhau ? 'text' : 'password'"
+              v-model="xacNhanMatKhau"
               class="form-control"
-              id="confirmPassword"
-              v-model="confirmPassword"
-              placeholder="Nhập lại mật khẩu mới"
-              required
+              placeholder="Nhập lại mật khẩu"
             />
-            <button class="btn btn-outline-secondary" type="button" @click="toggleConfirmPassword">
-              <i :class="showConfirmPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
+            <button
+              type="button"
+              class="btn btn-outline-secondary"
+              @click="chuyenTrangThaiXacNhanMatKhau"
+            >
+              <i :class="hienXacNhanMatKhau ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Mã xác thực -->
+        <div class="mb-3">
+          <label class="form-label">Mã xác thực</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-shield-lock-fill"></i></span>
+            <input
+              v-model="maXacThuc"
+              type="text"
+              class="form-control"
+              placeholder="Nhập mã xác thực"
+            />
+            <button
+              class="btn btn-outline-success"
+              type="button"
+              :disabled="demNguoc > 0 || isLoading"
+              @click="guiMa"
+            >
+              {{ demNguoc > 0 ? `Gửi lại (${demNguoc}s)` : 'Gửi mã' }}
             </button>
           </div>
         </div>
 
         <!-- Thông báo -->
-        <div v-if="errorMessage" class="alert alert-danger py-2">{{ errorMessage }}</div>
-        <div v-if="successMessage" class="alert alert-success py-2">{{ successMessage }}</div>
+        <div v-if="thongBaoLoi" class="alert alert-danger py-2">
+          <i class="bi bi-exclamation-triangle me-2"></i> {{ thongBaoLoi }}
+        </div>
+        <div v-if="thongBaoThanhCong" class="alert alert-success py-2">
+          <i class="bi bi-check-circle me-2"></i> {{ thongBaoThanhCong }}
+        </div>
 
-        <!-- Buttons -->
-        <button type="submit" class="btn btn-success w-100 mt-2">
-          <i class="bi bi-arrow-repeat me-1"></i>Đổi mật khẩu
+        <!-- Nút -->
+        <button
+          type="submit"
+          class="btn btn-success w-100 rounded mt-2 d-flex justify-content-center align-items-center"
+          :disabled="isLoading"
+        >
+          <span v-if="isLoading" class="spinner-border spinner-border-sm me-2"></span>
+          <span>{{ isLoading ? 'Đang xử lý...' : 'Đặt lại mật khẩu' }}</span>
         </button>
-        <button type="button" class="btn btn-secondary w-100 mt-2" @click="handleCancel">
-          <i class="bi bi-x-circle me-1"></i>Hủy
-        </button>
+
+        <div class="text-center mt-3">
+          <router-link to="/dang-nhap" class="text-decoration-none small text-success">
+            ← Quay lại đăng nhập
+          </router-link>
+        </div>
       </form>
+    </div>
+
+    <!-- Toast -->
+    <div
+      class="toast position-fixed top-0 end-0 m-3 p-0 shadow"
+      :class="toastBgClass"
+      role="alert"
+      aria-live="polite"
+      aria-atomic="true"
+      ref="toastRef"
+      style="z-index: 2100; min-width: 280px"
+    >
+      <div class="toast-body d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">{{ toastMessage }}</span>
+        <button type="button" class="btn-close btn-close-white ms-2" @click="hideToast"></button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 
-const router = useRouter()
+const dieuHuong = useRouter()
 
-// Form
 const email = ref('')
-const verificationCode = ref('')
-const newPassword = ref('')
-const confirmPassword = ref('')
+const maXacThuc = ref('')
+const matKhauMoi = ref('')
+const xacNhanMatKhau = ref('')
+const hienMatKhauMoi = ref(false)
+const hienXacNhanMatKhau = ref(false)
 
-// Trạng thái
-const errorMessage = ref('')
-const successMessage = ref('')
+const thongBaoLoi = ref('')
+const thongBaoThanhCong = ref('')
+const demNguoc = ref(0)
+let boDemThoiGian = null
 
-// Ẩn/hiện mật khẩu
-const showNewPassword = ref(false)
-const showConfirmPassword = ref(false)
+const isLoading = ref(false)
+const toastMessage = ref('')
+const toastType = ref('success')
+const toastRef = ref(null)
 
-function toggleNewPassword() {
-  showNewPassword.value = !showNewPassword.value
+const toastBgClass = computed(() => ({
+  'text-bg-success': toastType.value === 'success',
+  'text-bg-danger': toastType.value === 'danger',
+  'text-bg-warning': toastType.value === 'warning',
+  'text-bg-info': toastType.value === 'info',
+}))
+
+let toastTimer = null
+function showToast(type, message, duration = 3000) {
+  toastType.value = type
+  toastMessage.value = message
+  const el = toastRef.value
+  if (el) {
+    el.classList.add('show')
+    clearTimeout(toastTimer)
+    toastTimer = setTimeout(() => hideToast(), duration)
+  }
 }
-function toggleConfirmPassword() {
-  showConfirmPassword.value = !showConfirmPassword.value
+function hideToast() {
+  const el = toastRef.value
+  if (el) el.classList.remove('show')
+  clearTimeout(toastTimer)
 }
 
-// Đếm ngược gửi mã
-const countdown = ref(0)
-let timer = null
-
-function startCountdown() {
-  countdown.value = 60
-  timer = setInterval(() => {
-    if (countdown.value > 0) {
-      countdown.value--
-    } else {
-      clearInterval(timer)
-    }
+function chuyenTrangThaiMatKhauMoi() {
+  hienMatKhauMoi.value = !hienMatKhauMoi.value
+}
+function chuyenTrangThaiXacNhanMatKhau() {
+  hienXacNhanMatKhau.value = !hienXacNhanMatKhau.value
+}
+function batDauDemNguoc() {
+  demNguoc.value = 60
+  boDemThoiGian = setInterval(() => {
+    if (demNguoc.value > 0) demNguoc.value--
+    else clearInterval(boDemThoiGian)
   }, 1000)
 }
 
-function sendCode() {
-  errorMessage.value = ''
+function guiMa() {
+  thongBaoLoi.value = ''
   if (!email.value) {
-    errorMessage.value = '⚠️ Vui lòng nhập email trước khi gửi mã!'
+    thongBaoLoi.value = 'Vui lòng nhập email trước khi gửi mã xác thực!'
     return
   }
-
+  isLoading.value = true
   axios
     .post('http://localhost:8080/api/forgot/send-code', { email: email.value })
     .then(() => {
-      alert(`✅ Mã xác thực đã gửi tới ${email.value}`)
-      startCountdown()
+      showToast('success', '✅ Mã xác thực đã được gửi qua email!')
+      batDauDemNguoc()
     })
     .catch((err) => {
-      errorMessage.value = err.response?.data?.message || 'Không thể gửi mã. Vui lòng thử lại!'
+      const msg = err.response?.data?.message || 'Không thể gửi mã. Vui lòng thử lại sau.'
+      thongBaoLoi.value = msg
+      showToast('danger', msg)
+    })
+    .finally(() => {
+      isLoading.value = false
     })
 }
 
-function handleResetPassword() {
-  errorMessage.value = ''
-  successMessage.value = ''
+function xuLyDatLaiMatKhau() {
+  thongBaoLoi.value = ''
+  thongBaoThanhCong.value = ''
 
-  if (!email.value || !verificationCode.value || !newPassword.value || !confirmPassword.value) {
-    errorMessage.value = '⚠️ Vui lòng điền đầy đủ thông tin!'
+  if (!email.value || !maXacThuc.value || !matKhauMoi.value || !xacNhanMatKhau.value) {
+    thongBaoLoi.value = 'Vui lòng điền đầy đủ các trường.'
+    showToast('danger', thongBaoLoi.value)
+    return
+  }
+  if (matKhauMoi.value.length < 6) {
+    thongBaoLoi.value = 'Mật khẩu phải có ít nhất 6 ký tự.'
+    showToast('danger', thongBaoLoi.value)
+    return
+  }
+  if (matKhauMoi.value !== xacNhanMatKhau.value) {
+    thongBaoLoi.value = 'Mật khẩu xác nhận không khớp.'
+    showToast('danger', thongBaoLoi.value)
     return
   }
 
-  if (newPassword.value !== confirmPassword.value) {
-    errorMessage.value = '⚠️ Mật khẩu xác nhận không khớp.'
-    return
-  }
-
+  isLoading.value = true
   axios
     .post('http://localhost:8080/api/forgot/verify-code', {
       email: email.value,
-      code: verificationCode.value,
+      code: maXacThuc.value,
     })
-    .then(() => {
-      return axios.post('http://localhost:8080/api/forgot/reset-pass', {
+    .then(() =>
+      axios.post('http://localhost:8080/api/forgot/reset-pass', {
         email: email.value,
-        newPassword: newPassword.value,
-      })
-    })
+        newPassword: matKhauMoi.value,
+      }),
+    )
     .then(() => {
-      successMessage.value = '✅ Mật khẩu đã được đặt lại thành công!'
-      setTimeout(() => {
-        router.push('/dang-nhap')
-      }, 2000)
+      thongBaoThanhCong.value = 'Đặt lại mật khẩu thành công!'
+      showToast('success', thongBaoThanhCong.value)
+      setTimeout(() => dieuHuong.push('/dang-nhap'), 1500)
     })
     .catch((err) => {
-      errorMessage.value =
-        err.response?.data?.message || '❌ Mã xác thực không hợp lệ hoặc đã hết hạn!'
+      const msg = err.response?.data?.message || 'Mã xác thực không hợp lệ hoặc đã hết hạn.'
+      thongBaoLoi.value = msg
+      showToast('danger', msg)
     })
-}
-
-function handleCancel() {
-  router.push('/dang-nhap')
+    .finally(() => {
+      isLoading.value = false
+    })
 }
 </script>
 
 <style scoped>
-.forgot-password-container {
-  background: linear-gradient(to right, #e3f2fd, #f1f8e9);
-  padding: 40px 20px;
+.forgot-container {
+  background: linear-gradient(to right, #f1f8e9, #e3f2fd);
+  padding: 20px;
 }
 .card {
-  background-color: #fff;
   border-radius: 16px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
 }
 input.form-control:focus {
   border-color: #2e7d32;
   box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.25);
 }
-button.btn-success:hover {
-  background-color: #2e7d32;
+button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Loader toàn trang */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.8);
+  z-index: 2000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Toast */
+.toast {
+  opacity: 0;
+  transition:
+    opacity 0.2s ease-in-out,
+    transform 0.2s;
+  transform: translateY(-6px);
+}
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
 }
 </style>

@@ -2,14 +2,14 @@
   <header class="navbar-top py-3">
     <div class="container d-flex flex-wrap justify-content-between align-items-center">
       <!-- Logo -->
-      <div class="d-flex align-items-center">
+      <router-link to="/" class="d-flex align-items-center text-decoration-none">
         <img
           src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRiqUlj1LB8gUERYiFqhQZfT6YFZa2VRvqfwA&s"
           width="40"
           class="me-2"
         />
         <strong class="fs-5 text-white">NHÀ THUỐC TÂM AN</strong>
-      </div>
+      </router-link>
 
       <!-- Tìm kiếm -->
       <div class="d-flex align-items-center flex-grow-1 mx-3" style="max-width: 500px">
@@ -20,24 +20,24 @@
 
       <!-- Tài khoản & Giỏ hàng -->
       <div class="d-flex align-items-center gap-3">
-        <router-link v-if="!userInfo" to="/dang-nhap" class="btn-login">
+        <!-- Nếu chưa đăng nhập -->
+        <router-link v-if="!UserStore.userInfo" to="/dang-nhap" class="btn-login">
           <i class="bi bi-person"></i> Đăng nhập
         </router-link>
 
+        <!-- Nếu đã đăng nhập -->
         <div class="dropdown" v-else>
           <button
             class="btn btn-account dropdown-toggle d-flex align-items-center gap-2"
             type="button"
             data-bs-toggle="dropdown"
           >
-            <img
-              :src="getFullImageUrl(userInfo?.hinhAnh)"
-              width="36"
-              height="36"
-              class="rounded-circle"
-            />
-            <span class="fw-semibold d-none d-md-inline text-white">{{ userInfo.hoTen }}</span>
+            <img :src="getAvatar()" width="36" height="36" class="rounded-circle" />
+            <span class="fw-semibold d-none d-md-inline text-white">
+              {{ UserStore.userInfo.hoTen }}
+            </span>
           </button>
+
           <ul class="dropdown-menu dropdown-menu-end mt-2">
             <li>
               <router-link class="dropdown-item" to="/tai-khoan/thong-tin-ca-nhan">
@@ -53,9 +53,15 @@
           </ul>
         </div>
 
+        <!-- Giỏ hàng -->
         <router-link to="/gio-hang" class="btn-cart">
-          <i class="bi bi-cart3"></i> Giỏ hàng
+          <i class="bi bi-cart3 cart-icon"></i> Giỏ hàng
           <span class="cart-badge">{{ CartStore.cartCount }}</span>
+        </router-link>
+
+        <!-- Tra cứu đơn -->
+        <router-link to="/tra-cuu-don-hang" class="btn-cart">
+          <i class="bi bi-search"></i> Tra cứu
         </router-link>
       </div>
     </div>
@@ -63,29 +69,24 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { UserStore } from './UserStore'
 import TimKiem from './TimKiem.vue'
-import CartStore from './CartStore.js'
+import { CartStore } from './CartStore'
 
 const serverUrl = 'http://localhost:8080'
 const defaultAvatar = 'https://cdn-icons-png.flaticon.com/512/149/149071.png'
 
-const userInfo = ref(null)
-
-onMounted(() => {
-  const stored = localStorage.getItem('userInfo')
-  if (stored) {
-    userInfo.value = JSON.parse(stored)
-  }
-  CartStore.updateCount()
-})
-
-function getFullImageUrl(path) {
-  return path ? `${serverUrl}${path}` : defaultAvatar
+function getAvatar() {
+  const path = UserStore.userInfo?.hinhAnh
+  if (!path) return defaultAvatar
+  if (path.startsWith('http')) return path
+  return `${serverUrl}${path}`
 }
 
 function dangXuat() {
-  localStorage.removeItem('userInfo')
+  UserStore.clearUser()
+  localStorage.removeItem('cart_temp')
+  CartStore.updateCount()
   location.reload()
 }
 </script>
@@ -104,9 +105,8 @@ function dangXuat() {
   display: flex;
   align-items: center;
   gap: 6px;
-  text-decoration: none; /* ✅ Thêm dòng này */
+  text-decoration: none;
 }
-
 .btn-cart {
   position: relative;
   background-color: rgba(0, 100, 0, 0.4);
@@ -116,9 +116,8 @@ function dangXuat() {
   display: flex;
   align-items: center;
   gap: 8px;
-  text-decoration: none; /* ✅ Thêm dòng này */
+  text-decoration: none;
 }
-
 .cart-badge {
   background-color: orange;
   color: white;

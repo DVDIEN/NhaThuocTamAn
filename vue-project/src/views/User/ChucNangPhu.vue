@@ -19,12 +19,12 @@
 const items = [
   {
     title: 'Gợi ý mua thuốc theo triệu trứng bệnh',
-    icon: 'https://cdn-icons-png.flaticon.com/128/2622/2622693.png',
-    link: '/goi-y-mua-thuoc-theo-trieu-trung', // Đường dẫn Vue Router
+    icon: 'https://cdn.nhathuoclongchau.com.vn/unsafe/40x0/filters:quality(90)/https://cms-prod.s3-sgn09.fptcloud.com/smalls/48px_fe435f0cad.png',
+    link: '/goi-y-mua-thuoc-theo-trieu-trung',
   },
   {
     title: 'Đơn thuốc của tôi',
-    icon: 'https://cdn-icons-png.flaticon.com/128/10298/10298814.png',
+    icon: 'https://cdn.nhathuoclongchau.com.vn/unsafe/40x0/filters:quality(90)/https://cms-prod.s3-sgn09.fptcloud.com/smalls/4_Lich_Su_Don_Hang_48x48_0f0d6dd55f.png',
     link: '/don-thuoc',
   },
 ]

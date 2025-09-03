@@ -1,18 +1,29 @@
 <template>
   <section>
     <div class="container">
-      <h2 class="section-title">
-        <i class="bi bi-fire text-success me-2"></i>
-        Sản phẩm bán chạy
+      <h2 class="section-title d-flex align-items-center">
+        <img
+          src="https://cdn.nhathuoclongchau.com.vn/unsafe/24x0/filters:quality(90)/https://cms-prod.s3-sgn09.fptcloud.com/smalls/tpcn_vitamin_khoang_chat_level_2_91b99b5a64.png"
+          alt="Vitamin Icon"
+          width="24"
+          height="24"
+          class="me-2"
+        />
+        Vitamin và Khoáng chất
       </h2>
+
       <div class="row">
-        <div class="col-2-4 mb-4" v-for="item in products" :key="item.id">
-          <router-link :to="`/product-detail/${item.id}`" class="text-decoration-none">
+        <div class="col-2-4 mb-4" v-for="item in products" :key="item.maThuoc">
+          <router-link :to="`/chi-tiet/${item.maThuoc}`" class="text-decoration-none">
             <div class="card h-100">
-              <img :src="item.img" class="card-img-top" :alt="item.name" />
+              <img
+                :src="getFullImage(item.hinhAnhChinh)"
+                class="card-img-top"
+                :alt="item.tenThuoc"
+              />
               <div class="card-body">
-                <h5 class="card-title">{{ item.name }}</h5>
-                <p class="card-text text-success fw-bold">Giá: {{ formatCurrency(item.price) }}</p>
+                <h5 class="card-title">{{ item.tenThuoc }}</h5>
+                <p class="card-text text-success fw-bold">{{ formatCurrency(item.giaBan) }}</p>
                 <button class="btn btn-green w-100">Mua ngay</button>
               </div>
             </div>
@@ -24,44 +35,37 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 
-const products = ref([
-  {
-    id: '1',
-    name: 'Bio Acimin Fiber',
-    price: 147000,
-    img: 'https://nhathuocthanthien.com.vn/wp-content/uploads/2019/03/dgm_nttt_bio-acimin-fiber.jpg',
-  },
-  {
-    id: '2',
-    name: 'Prospan Syrup',
-    price: 120000,
-    img: 'https://nhathuocthanthien.com.vn/wp-content/uploads/2019/02/dgm_nttt_prospan-100ml-250x250.jpg',
-  },
-  {
-    id: '3',
-    name: 'Biovital Multivitamin',
-    price: 135000,
-    img: 'https://nhathuocthanthien.com.vn/wp-content/uploads/2019/03/dgm_nttt_tpcn-biovital-250x250.jpg',
-  },
-  {
-    id: '4',
-    name: 'Dizigone Nano Bạc',
-    price: 125000,
-    img: 'https://cdn.nhathuoclongchau.com.vn/unsafe/256x0/filters:quality(90)/https://cms-prod.s3-sgn09.fptcloud.com/00031306_dizigone_nano_bac_tuyp_25g_8953_633b_large_ca3fd63a8c.jpg',
-  },
-  {
-    id: '5',
-    name: 'Vitamin B Complex',
-    price: 110000,
-    img: 'https://cdn.nhathuoclongchau.com.vn/unsafe/256x0/filters:quality(90)/https://cms-prod.s3-sgn09.fptcloud.com/DSC_03594_d9d39b4d3f.jpg',
-  },
-])
+const products = ref([])
+
+function getFullImage(path) {
+  if (!path) return 'https://via.placeholder.com/150'
+  return `http://localhost:8080${path.startsWith('/') ? path : '/' + path}`
+}
 
 function formatCurrency(value) {
-  return value.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })
+  return Number(value).toLocaleString('vi-VN') + 'đ'
 }
+
+async function fetchSanPhamVaSapXepBanChay(limit = 10) {
+  try {
+    const url = `http://localhost:8080/api/thuoc/search?daXoa=false&trangThai=true`
+    const res = await fetch(url)
+    const data = await res.json()
+
+    products.value = data
+      .filter((sp) => !sp.daXoa && sp.trangThai === true) // lọc lại ở frontend cho chắc
+      .sort((a, b) => (b.soLuongDaBan || 0) - (a.soLuongDaBan || 0))
+      .slice(0, limit)
+  } catch (err) {
+    console.error('Lỗi khi lấy danh sách thuốc:', err)
+  }
+}
+
+onMounted(() => {
+  fetchSanPhamVaSapXepBanChay(10)
+})
 </script>
 
 <style scoped>
@@ -111,5 +115,18 @@ function formatCurrency(value) {
   margin-top: 20px;
   margin-bottom: 20px;
   font-weight: bold;
+}
+.card-title {
+  font-size: 1rem;
+  font-weight: 500;
+  margin-bottom: 12px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: normal;
+  line-height: 1.6;
+  height: calc(1.6em * 2);
 }
 </style>

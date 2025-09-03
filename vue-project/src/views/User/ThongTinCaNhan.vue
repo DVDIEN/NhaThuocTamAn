@@ -5,38 +5,34 @@
     </div>
   </div>
 
-  <div v-else class="card p-4 shadow-sm">
+  <div v-else class="profile-card card p-4 shadow-lg border-0 rounded-4">
     <div class="row align-items-center">
-      <div class="col-md-3 text-center mb-3 mb-md-0 position-relative">
-        <!-- Bọc avatar bằng label để click -->
-        <label style="cursor: pointer">
-          <img
-            :src="getFullImageUrl(user.hinhAnh)"
-            alt="Avatar"
-            class="rounded-circle img-thumbnail"
-            style="width: 120px; height: 120px; object-fit: cover"
-          />
+      <!-- Avatar -->
+      <div class="col-md-3 text-center mb-3 mb-md-0">
+        <label class="avatar-wrapper">
+          <img :src="getFullImageUrl(user.hinhAnh)" alt="Avatar" class="avatar-img" />
           <input type="file" class="d-none" @change="handleFileChange" />
         </label>
-        <small class="text-muted d-block mt-2" style="font-size: 12px">Click để đổi ảnh</small>
+        <small class="text-muted d-block mt-2">📷 Click để đổi ảnh</small>
       </div>
 
+      <!-- Info -->
       <div class="col-md-9">
-        <h4 class="fw-bold mb-2">{{ user.hoTen }}</h4>
-        <p class="mb-1"><i class="bi bi-envelope me-2"></i>{{ user.email }}</p>
-        <p class="mb-1"><i class="bi bi-telephone me-2"></i>{{ user.soDienThoai }}</p>
-        <p class="mb-1"><i class="bi bi-geo-alt me-2"></i>{{ user.diaChi }}</p>
+        <h4 class="fw-bold text-success mb-2">{{ user.hoTen }}</h4>
+        <p class="mb-1"><i class="bi bi-envelope text-success me-2"></i>{{ user.email }}</p>
+        <p class="mb-1"><i class="bi bi-telephone text-success me-2"></i>{{ user.soDienThoai }}</p>
+        <p class="mb-1"><i class="bi bi-geo-alt text-success me-2"></i>{{ user.diaChi }}</p>
 
-        <button class="btn btn-outline-primary mt-3" @click="editing = true">
-          <i class="bi bi-pencil-square me-1"></i> Chỉnh sửa thông tin
+        <button class="btn btn-outline-success mt-3 px-4" @click="editing = true">
+          <i class="bi bi-pencil-square me-1"></i> Chỉnh sửa
         </button>
       </div>
     </div>
 
-    <!-- Form chỉnh sửa -->
+    <!-- Modal form -->
     <div v-if="editing" class="overlay">
-      <div class="edit-form card p-4 shadow">
-        <h5 class="fw-bold mb-3">Chỉnh sửa thông tin</h5>
+      <div class="edit-form card p-4 shadow rounded-4">
+        <h5 class="fw-bold mb-3 text-success">Cập nhật thông tin</h5>
         <div class="row g-3">
           <div class="col-md-6">
             <input v-model="form.hoTen" type="text" class="form-control" placeholder="Họ và tên" />
@@ -45,48 +41,44 @@
             <input v-model="form.email" type="email" class="form-control" placeholder="Email" />
           </div>
           <div class="col-md-6">
-            <input
-              v-model="form.soDienThoai"
-              type="text"
-              class="form-control"
-              placeholder="Số điện thoại"
-            />
+            <input v-model="form.soDienThoai" type="text" class="form-control" placeholder="SĐT" />
           </div>
           <div class="col-md-6">
             <input v-model="form.diaChi" type="text" class="form-control" placeholder="Địa chỉ" />
           </div>
         </div>
 
-        <div class="text-end mt-3">
-          <button class="btn btn-secondary me-2" @click="editing = false">Hủy</button>
-          <button class="btn btn-success" @click="saveInfo">Lưu</button>
+        <div class="text-end mt-4">
+          <button class="btn btn-outline-secondary me-2 px-4" @click="editing = false">Hủy</button>
+          <button class="btn btn-success px-4" @click="saveInfo">Lưu</button>
         </div>
       </div>
     </div>
+
+    <!-- Toast -->
+    <ToastMessage ref="toastRef" />
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
+import { UserStore } from './UserStore'
+import ToastMessage from '../ToastMessage.vue'
 
-// Cấu hình base URL backend (thay đổi theo server thực tế của bạn)
 const serverUrl = 'http://localhost:8080'
-
-// Avatar mặc định nếu chưa có ảnh
 const defaultAvatar = 'https://cdn-icons-png.flaticon.com/512/149/149071.png'
 
 const user = ref({})
 const form = ref({})
 const editing = ref(false)
 const loading = ref(true)
+const selectedFile = ref(null)
+const toastRef = ref(null)
 
-const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
-const maKH = userInfo.maKH
+const maKH = UserStore.userInfo?.maKH || UserStore.userInfo?.id
 
-onMounted(() => {
-  loadUser()
-})
+onMounted(loadUser)
 
 function loadUser() {
   axios
@@ -96,35 +88,39 @@ function loadUser() {
       form.value = { ...res.data }
     })
     .catch((err) => {
-      console.error('Lỗi tải thông tin cá nhân:', err)
-      alert('Lỗi tải thông tin cá nhân')
+      console.error('Lỗi tải thông tin:', err)
+      showToast('❌ Lỗi tải thông tin cá nhân', 'danger')
     })
     .finally(() => (loading.value = false))
 }
 
-// Ghép URL đầy đủ cho ảnh
 function getFullImageUrl(path) {
   return path ? `${serverUrl}${path}` : defaultAvatar
 }
 
-// Upload avatar
-async function handleFileChange(e) {
-  const selectedFile = e.target.files[0]
-  if (!selectedFile) return
+function handleFileChange(e) {
+  selectedFile.value = e.target.files[0]
+  if (selectedFile.value) {
+    uploadAvatar()
+  }
+}
 
-  const formData = new FormData()
-  formData.append('file', selectedFile)
-
+async function uploadAvatar() {
   try {
+    const formData = new FormData()
+    formData.append('file', selectedFile.value)
+
     const res = await axios.post(`${serverUrl}/api/khachhang/${maKH}/avatar`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
+
     user.value = res.data
     form.value = { ...res.data }
-    alert('✅ Ảnh đại diện đã được cập nhật!')
+    UserStore.setUser(res.data)
+    showToast('✅ Ảnh đại diện đã được cập nhật!', 'success')
   } catch (err) {
     console.error('Lỗi upload avatar:', err)
-    alert('❌ Lỗi upload avatar')
+    showToast('❌ Lỗi upload avatar', 'danger')
   }
 }
 
@@ -133,32 +129,74 @@ async function saveInfo() {
     const res = await axios.put(`${serverUrl}/api/khachhang/${maKH}`, form.value)
     user.value = res.data
     form.value = { ...res.data }
+    UserStore.setUser(res.data)
     editing.value = false
-    alert('✅ Cập nhật thông tin thành công!')
+    showToast(' Cập nhật thông tin thành công!', 'success')
   } catch (err) {
     console.error('Lỗi cập nhật:', err)
-    alert('❌ Lỗi khi cập nhật thông tin!')
+    showToast('❌ Lỗi khi cập nhật thông tin!', 'danger')
   }
+}
+
+function showToast(msg, type = 'success') {
+  toastRef.value?.show(msg, type)
 }
 </script>
 
 <style scoped>
+.profile-card {
+  border-radius: 16px;
+  background: #fff;
+}
+
+.avatar-wrapper {
+  cursor: pointer;
+  display: inline-block;
+  transition: transform 0.2s;
+}
+.avatar-wrapper:hover {
+  transform: scale(1.05);
+}
+
+.avatar-img {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 3px solid #2e7d32;
+  object-fit: cover;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
 .overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.45);
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 9999;
+  z-index: 1050;
+  backdrop-filter: blur(2px);
 }
+
 .edit-form {
-  background: white;
+  background: #fff;
   width: 100%;
   max-width: 600px;
-  border-radius: 12px;
+  border-radius: 16px;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>

@@ -1,40 +1,35 @@
 <template>
-  <div>
-    <button class="btn btn-outline-secondary btn-sm" @click="moModal = true">🕓 Lịch sử</button>
-
-    <div
-      v-if="moModal"
-      class="modal fade show d-block"
-      style="background-color: rgba(0, 0, 0, 0.5)"
-    >
-      <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title text-primary">📜 Lịch sử đơn hàng #{{ maDonHang }}</h5>
-            <button class="btn-close" @click="moModal = false"></button>
-          </div>
-          <div class="modal-body">
-            <ul class="timeline list-unstyled ps-0">
-              <li v-for="(item, index) in dataLichSu" :key="index" class="mb-4 position-relative">
-                <div class="timeline-point bg-success"></div>
-                <div class="ms-4">
-                  <div class="fw-bold">
-                    {{ formatTime(item.thoiGian) }}
-                    — <span class="text-primary">{{ trangThaiLabel(item.trangThaiMoi) }}</span>
-                  </div>
-                  <div class="text-muted small">
-                    ({{ trangThaiLabel(item.trangThaiCu) }} ➔
-                    {{ trangThaiLabel(item.trangThaiMoi) }})
-                  </div>
-                  <div>{{ item.ghiChu || '---' }}</div>
+  <div
+    class="modal fade show d-block"
+    style="background: rgba(0, 0, 0, 0.5)"
+    @click.self="emitClose"
+  >
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title text-primary">📜 Lịch sử đơn hàng #{{ maDonHang }}</h5>
+          <button class="btn-close" @click="emitClose"></button>
+        </div>
+        <div class="modal-body">
+          <ul class="timeline list-unstyled ps-0">
+            <li v-for="(item, index) in dataLichSu" :key="index" class="mb-4 position-relative">
+              <div class="timeline-point bg-success"></div>
+              <div class="ms-4">
+                <div class="fw-bold">
+                  {{ formatTime(item.thoiGian) }} —
+                  <span class="text-primary">{{ trangThaiLabel(item.trangThaiMoi) }}</span>
                 </div>
-              </li>
-              <li v-if="dataLichSu.length === 0" class="text-muted">Chưa có lịch sử.</li>
-            </ul>
-          </div>
-          <div class="modal-footer">
-            <button class="btn btn-secondary" @click="moModal = false">Đóng</button>
-          </div>
+                <div class="text-muted small">
+                  ({{ trangThaiLabel(item.trangThaiCu) }} ➔ {{ trangThaiLabel(item.trangThaiMoi) }})
+                </div>
+                <div>{{ item.ghiChu || '---' }}</div>
+              </div>
+            </li>
+            <li v-if="dataLichSu.length === 0" class="text-muted">Chưa có lịch sử.</li>
+          </ul>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" @click="emitClose">Đóng</button>
         </div>
       </div>
     </div>
@@ -42,14 +37,13 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-
 const props = defineProps({
   maDonHang: Number,
   dataLichSu: Array,
 })
+const emit = defineEmits(['close'])
 
-const moModal = ref(false)
+const emitClose = () => emit('close')
 
 const formatTime = (t) => new Date(t).toLocaleString('vi-VN')
 const trangThaiLabel = (t) =>
